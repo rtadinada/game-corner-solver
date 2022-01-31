@@ -19,18 +19,18 @@ const config = {
                 use: ["style-loader", "css-loader"],
             },
             {
-                test: /\.ts$/,
+                test: /\.tsx?$/,
                 use: "ts-loader",
                 exclude: /node_modules/,
             },
         ],
     },
     resolve: {
-        extensions: [".ts"],
+        extensions: [".ts", ".tsx", ".js"],
     },
     plugins: [
         new HtmlWebpackPlugin({
-            title: "Output Management",
+            template: "./src/index.html",
         }),
         new ForkTsCheckerWebpackPlugin({
             async: false,
