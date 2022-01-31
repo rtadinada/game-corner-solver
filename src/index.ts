@@ -1,14 +1,18 @@
 import "./style.css";
 
-import _ from "lodash";
+import * as _ from "lodash";
 
-import printMe from "./print.js";
+import printMe from "./print";
 
-function component() {
+function toUpperCase(input: string): string {
+    return input.toUpperCase();
+}
+
+function component(): HTMLDivElement {
     const element = document.createElement("div");
 
     // Lodash, now imported by this script
-    element.innerHTML = _.join(["Hello", "webpack", "!!!"], " ");
+    element.innerHTML = _.join([toUpperCase("Hello"), "webpack", "!!!"], " ");
     element.classList.add("hello");
 
     const btn = document.createElement("button");

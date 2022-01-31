@@ -1,0 +1,8 @@
+{
+    "compilerOptions": {
+        "outDir": "./dist/",
+        "module": "ES2020",
+        "strict": true,
+        "sourceMap": true
+    }
+}

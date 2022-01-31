@@ -1,3 +1,4 @@
+import ForkTsCheckerWebpackPlugin from "fork-ts-checker-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -11,27 +12,34 @@ const config = {
     devServer: {
         static: "./dist",
     },
-    entry: {
-        index: "./src/index.js",
-        print: "./src/print.js",
-    },
-    plugins: [
-        new HtmlWebpackPlugin({
-            title: "Output Management",
-        }),
-    ],
-    output: {
-        filename: "[name].bundle.js",
-        path: path.resolve(dirName, "dist"),
-        clean: true,
-    },
     module: {
         rules: [
             {
                 test: /\.css$/i,
                 use: ["style-loader", "css-loader"],
             },
+            {
+                test: /\.ts$/,
+                use: "ts-loader",
+                exclude: /node_modules/,
+            },
         ],
+    },
+    resolve: {
+        extensions: [".ts"],
+    },
+    plugins: [
+        new HtmlWebpackPlugin({
+            title: "Output Management",
+        }),
+        new ForkTsCheckerWebpackPlugin({
+            async: false,
+        }),
+    ],
+    output: {
+        filename: "[name].bundle.js",
+        path: path.resolve(dirName, "dist"),
+        clean: true,
     },
 };
 
