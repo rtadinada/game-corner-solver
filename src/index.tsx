@@ -1,4 +1,4 @@
-import "./css/style.css";
+import style from "./css/style.css";
 
 import _ from "lodash";
 import React from "react";
@@ -8,7 +8,7 @@ import printMe from "./tsx/print";
 
 ReactDOM.render(
     <React.StrictMode>
-        <div className="hello">Hello!</div>
+        <div className={style.hello}>Hello!</div>
         <button onClick={printMe}>ClickMe</button>
     </React.StrictMode>,
     document.getElementById("root") // see index.html
