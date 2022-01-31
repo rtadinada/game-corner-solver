@@ -54,16 +54,33 @@ export const GAME_CELL_TO_VALUE: Record<GameCell, number> = {
 
 const EMPTY_ACCUM: Accum = { totalValue: 0, numVoltorbs: 0 };
 
-export function initGameBoard(): GameBoard {
+const INIT_BOARD_LIKELIHOODS: CellLikelihoods = {
+    one: 1,
+    two: 0,
+    three: 0,
+    voltorb: 0,
+};
+const INIT_BOARD_LIKELIHOODS_GRID: LikelihoodGrid = R.repeat(
+    R.repeat(INIT_BOARD_LIKELIHOODS, NUM_COLS),
+    NUM_ROWS
+);
+
+export function initGameBoardAndLikelihoods(): {
+    board: GameBoard;
+    likelihoodGrid: LikelihoodGrid;
+} {
     const grid = R.repeat(R.repeat(UNSET_VALUE, NUM_COLS), NUM_ROWS);
     const rowAccums = R.repeat({ totalValue: NUM_COLS, numVoltorbs: 0 }, NUM_ROWS);
     const colAccums = R.repeat({ totalValue: NUM_ROWS, numVoltorbs: 0 }, NUM_COLS);
-
-    return {
+    const board = {
         grid,
         rowAccums,
         colAccums,
     };
+
+    const likelihoodGrid = INIT_BOARD_LIKELIHOODS_GRID;
+
+    return { board, likelihoodGrid };
 }
 
 export function isValidRowAccum(accum: Accum) {
@@ -282,7 +299,7 @@ function getPossibleValueGrids(board: GameBoard): ValueGrid[] {
     }, partialResults);
 }
 
-export function getLikelihoods(board: GameBoard): LikelihoodGrid | null {
+export async function getLikelihoods(board: GameBoard): Promise<LikelihoodGrid | null> {
     const possibleGrids = getPossibleValueGrids(board);
     if (possibleGrids.length === 0) {
         return null;

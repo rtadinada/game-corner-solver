@@ -1,6 +1,7 @@
 .playGrid {
     width: 800px;
     height: 800px;
+    padding: 20px;
     display: grid;
     column-gap: 1%;
     row-gap: 1%;
@@ -33,6 +34,11 @@
 
 .playCellLikelyPoints {
     background-color: rgb(172, 255, 147) !important;
+}
+
+.playCellOutOfDate {
+    background-color: rgb(243, 243, 243);
+    color: rgb(184, 184, 184);
 }
 
 .likelihoodName {
@@ -82,4 +88,39 @@
     height: 13px;
     width: 30px;
     border-color: transparent;
+}
+
+.buttonCell {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.button {
+    margin: 5px;
+}
+
+.computingOverlay {
+    position: absolute;
+    width: inherit;
+    height: inherit;
+    opacity: 0.4;
+    animation-duration: 3s;
+    animation-name: pulse;
+    animation-iteration-count: infinite;
+}
+
+@keyframes pulse {
+    from {
+        background-color: lightgray;
+    }
+
+    50% {
+        background-color: black;
+    }
+
+    to {
+        background-color: lightgray;
+    }
 }

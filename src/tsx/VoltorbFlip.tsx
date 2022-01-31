@@ -3,11 +3,21 @@ import style from "../css/VoltorbFlip.css";
 import React, { ReactNode } from "react";
 import * as R from "ramda";
 import * as GameBoardHelper from "./GameBoardHelper";
-import { GameBoard, CellLikelihoods, Accum, LikelihoodRow, CellValue } from "./GameBoardHelper";
+import {
+    GameBoard,
+    CellLikelihoods,
+    Accum,
+    LikelihoodRow,
+    CellValue,
+    LikelihoodGrid,
+} from "./GameBoardHelper";
 
 type Props = {};
 type State = {
     board: GameBoard;
+    likelihoodGrid: LikelihoodGrid | null;
+    isOutOfDate: boolean;
+    isComputing: boolean;
 };
 
 const CELL_VALUE_TO_STRING: Record<CellValue, string> = {
@@ -17,14 +27,18 @@ const CELL_VALUE_TO_STRING: Record<CellValue, string> = {
     voltorb: "💣",
 };
 
+const INITIAL_STATE: State = {
+    ...GameBoardHelper.initGameBoardAndLikelihoods(),
+    isOutOfDate: false,
+    isComputing: false,
+};
+
 function formatPercent(chance: number): string {
     return `${(chance * 100).toFixed(2)}%`;
 }
 
 export default class VoltorbFlip extends React.Component<Props, State> {
-    state = {
-        board: GameBoardHelper.initGameBoard(),
-    };
+    state = INITIAL_STATE;
 
     renderCell = (
         rowNum: number,
@@ -48,12 +62,16 @@ export default class VoltorbFlip extends React.Component<Props, State> {
 
                 return {
                     board: GameBoardHelper.updateGameBoard(prevState.board, { updatedGrid }),
+                    isComputing: true,
+                    isOutOfDate: true,
                 };
             });
         };
 
         let addlClass = "";
-        if (likelihoods === null || lowestVol === null) {
+        if (this.state.isOutOfDate) {
+            addlClass = style.playCellOutOfDate;
+        } else if (likelihoods === null || lowestVol === null) {
             addlClass = style.invalidColor;
         } else if (likelihoods.voltorb === 0) {
             addlClass = style.playCellNoBomb;
@@ -69,6 +87,7 @@ export default class VoltorbFlip extends React.Component<Props, State> {
         }
 
         if (cellVal === GameBoardHelper.UNSET_VALUE) {
+            const likelihoodsValid = !this.state.isOutOfDate && likelihoods !== null;
             return (
                 <div
                     key={keyName}
@@ -79,25 +98,25 @@ export default class VoltorbFlip extends React.Component<Props, State> {
                         {CELL_VALUE_TO_STRING[GameBoardHelper.ONE_VALUE]}:
                     </div>
                     <div className={style.likelihoodValue}>
-                        {formatPercent(likelihoods !== null ? likelihoods.one : 0)}
+                        {formatPercent(likelihoodsValid ? likelihoods.one : 0)}
                     </div>
                     <div className={style.likelihoodName}>
                         {CELL_VALUE_TO_STRING[GameBoardHelper.TWO_VALUE]}:
                     </div>
                     <div className={style.likelihoodValue}>
-                        {formatPercent(likelihoods !== null ? likelihoods.two : 0)}
+                        {formatPercent(likelihoodsValid ? likelihoods.two : 0)}
                     </div>
                     <div className={style.likelihoodName}>
                         {CELL_VALUE_TO_STRING[GameBoardHelper.THREE_VALUE]}:
                     </div>
                     <div className={style.likelihoodValue}>
-                        {formatPercent(likelihoods !== null ? likelihoods.three : 0)}
+                        {formatPercent(likelihoodsValid ? likelihoods.three : 0)}
                     </div>
                     <div className={style.likelihoodName}>
                         {CELL_VALUE_TO_STRING[GameBoardHelper.VOLTORB_VALUE]}:
                     </div>
                     <div className={style.likelihoodValue}>
-                        {formatPercent(likelihoods !== null ? likelihoods.voltorb : 0)}
+                        {formatPercent(likelihoodsValid ? likelihoods.voltorb : 0)}
                     </div>
                 </div>
             );
@@ -145,6 +164,7 @@ export default class VoltorbFlip extends React.Component<Props, State> {
             const updatedAccumTest = {
                 ...accumTest,
                 numVoltorbs: newNumVoltorbs,
+                isOutOfDate: true,
             };
             if (!GameBoardHelper.isValidRowAccum(updatedAccumTest)) {
                 return;
@@ -164,6 +184,7 @@ export default class VoltorbFlip extends React.Component<Props, State> {
 
                 return {
                     board: GameBoardHelper.updateGameBoard(prevState.board, { updatedRowAccums }),
+                    isOutOfDate: true,
                 };
             });
         };
@@ -207,6 +228,7 @@ export default class VoltorbFlip extends React.Component<Props, State> {
 
                 return {
                     board: GameBoardHelper.updateGameBoard(prevState.board, { updatedColAccums }),
+                    isOutOfDate: true,
                 };
             });
         };
@@ -235,6 +257,7 @@ export default class VoltorbFlip extends React.Component<Props, State> {
 
                 return {
                     board: GameBoardHelper.updateGameBoard(prevState.board, { updatedColAccums }),
+                    isOutOfDate: true,
                 };
             });
         };
@@ -302,15 +325,48 @@ export default class VoltorbFlip extends React.Component<Props, State> {
     };
 
     renderColAccumRow = (): React.ReactNode[] => {
-        return R.map(this.renderColAccum, R.range(0, GameBoardHelper.NUM_COLS));
+        const accums = R.map(this.renderColAccum, R.range(0, GameBoardHelper.NUM_COLS));
+        const calculateButton = (
+            <div className={style.buttonCell}>
+                <button
+                    className={style.button}
+                    onClick={() => {
+                        this.setState({ isComputing: true, isOutOfDate: true });
+                    }}
+                >
+                    Calculate
+                </button>
+                <button
+                    className={style.button}
+                    onClick={() => {
+                        this.setState(INITIAL_STATE);
+                    }}
+                >
+                    Reset
+                </button>
+            </div>
+        );
+        return R.append(calculateButton, accums);
     };
+
+    async componentDidUpdate(prevProps: Props, prevState: State): Promise<void> {
+        if (this.state.isComputing && !prevState.isComputing) {
+            const newLikelihoods = await GameBoardHelper.getLikelihoods(this.state.board);
+
+            this.setState({
+                likelihoodGrid: newLikelihoods,
+                isComputing: false,
+                isOutOfDate: false,
+            });
+        }
+    }
 
     render(): React.ReactNode {
         const gridStyle = {
             gridTemplateColumns: `repeat(${GameBoardHelper.NUM_COLS + 1}, 1fr)`,
         };
 
-        const likelihoodGrid = GameBoardHelper.getLikelihoods(this.state.board);
+        const likelihoodGrid = this.state.isComputing ? null : this.state.likelihoodGrid;
         const lowestVol =
             likelihoodGrid === null
                 ? null
@@ -341,6 +397,7 @@ export default class VoltorbFlip extends React.Component<Props, State> {
                     R.range(0, GameBoardHelper.NUM_ROWS)
                 )}
                 {this.renderColAccumRow()}
+                {this.state.isComputing && <div className={style.computingOverlay} />}
             </div>
         );
     }
