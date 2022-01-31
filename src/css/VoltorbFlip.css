@@ -1,0 +1,85 @@
+.playGrid {
+    width: 800px;
+    height: 800px;
+    display: grid;
+    column-gap: 1%;
+    row-gap: 1%;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.invalidColor {
+    background-color: rgb(247, 49, 43) !important;
+}
+
+.playCellUnset {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 8%;
+    row-gap: 1%;
+    font-size: 14px;
+    background-color: rgb(206, 221, 250);
+}
+
+.playCellNoBomb {
+    background-color: rgb(53, 177, 15) !important;
+}
+
+.playCellNoPoints {
+    background-color: rgb(255, 229, 159) !important;
+}
+
+.playCellLikelyPoints {
+    background-color: rgb(172, 255, 147) !important;
+}
+
+.likelihoodName {
+    display: inline-flex;
+    justify-content: flex-end;
+    align-items: center;
+    font-weight: bolder;
+}
+
+.likelihoodValue {
+    display: inline-flex;
+    align-items: center;
+}
+
+.playCellSet {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 36px;
+    font-weight: bolder;
+    background-color: rgb(243, 243, 243);
+}
+
+.accumCell {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin: 5%;
+    background-color: rgb(255, 254, 172);
+}
+
+.inputRow {
+    padding: 5px;
+}
+
+.inputName {
+    display: inline-flex;
+    justify-content: flex-end;
+    width: 30px;
+    padding-right: 10px;
+}
+
+.inputNum {
+    text-align: center;
+    justify-content: center;
+    height: 13px;
+    width: 30px;
+    border-color: transparent;
+}
