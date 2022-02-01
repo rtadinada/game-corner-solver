@@ -222,26 +222,38 @@ function isRowValid(board: GameBoard, rowNum: number, inputRow: RowWithAccum): b
     return true;
 }
 
-function getPossibleValueRowsWithAccums(board: GameBoard): RowWithAccum[] {
+type GetNextPartialRowsData = {
+    partialResults: RowWithAccum[];
+    values: CellValue[];
+};
+
+type GetNextPartialRowsResult = RowWithAccum[];
+
+async function getNextPartialRows(partialResults: RowWithAccum[]): Promise<RowWithAccum[]> {
+    const worker = new Worker(new URL("../workers/GetNextPartialRowsWorker.js", import.meta.url));
+
+    return new Promise((resolve) => {
+        worker.onmessage = ({ data }) => {
+            const nextPartialRowsResult = data as GetNextPartialRowsResult;
+            resolve(nextPartialRowsResult);
+            worker.terminate();
+        };
+
+        const input: GetNextPartialRowsData = {
+            partialResults,
+            values: CELL_VALUES,
+        };
+        worker.postMessage(input);
+    });
+}
+
+async function getPossibleValueRowsWithAccums(board: GameBoard): Promise<RowWithAccum[]> {
     const maxRowAccum = getOverallMaxAccum(board.rowAccums);
 
     let colNum = 0;
     let partialResults: RowWithAccum[] = [{ row: [], accum: EMPTY_ACCUM }];
     while (colNum < NUM_COLS) {
-        const nextPartialRowsByValue: RowWithAccum[][] = R.map(
-            (value: CellValue): RowWithAccum[] => {
-                return R.map(({ row, accum }): RowWithAccum => {
-                    return {
-                        row: R.append(value, row),
-                        accum: addToAccum(accum, value),
-                    };
-                }, partialResults);
-            },
-            CELL_VALUES
-        );
-        const nextPartialRows: RowWithAccum[] = ([] as RowWithAccum[]).concat(
-            ...nextPartialRowsByValue
-        );
+        const nextPartialRows: RowWithAccum[] = await getNextPartialRows(partialResults);
 
         partialResults = R.filter((row: RowWithAccum): boolean => {
             return isPartialAccumValid(row.accum, maxRowAccum);
@@ -253,8 +265,33 @@ function getPossibleValueRowsWithAccums(board: GameBoard): RowWithAccum[] {
     return partialResults;
 }
 
-function getPossibleValueGrids(board: GameBoard): ValueGrid[] {
-    const possibleRows = getPossibleValueRowsWithAccums(board);
+type GetNextPartialGridsData = {
+    partialResults: ValueGrid[];
+    rowsToAdd: ValueGridRow[];
+};
+
+type GetNextPartialGridsResult = ValueGrid[];
+
+async function getNextPartialGrids(
+    partialResults: ValueGrid[],
+    rowsToAdd: ValueGridRow[]
+): Promise<ValueGrid[]> {
+    const worker = new Worker(new URL("../workers/GetNextPartialGridsWorker.js", import.meta.url));
+
+    return new Promise((resolve) => {
+        worker.onmessage = ({ data }) => {
+            const nextPartialRowsResult = data as GetNextPartialGridsResult;
+            resolve(nextPartialRowsResult);
+            worker.terminate();
+        };
+
+        const input: GetNextPartialGridsData = { partialResults, rowsToAdd };
+        worker.postMessage(input);
+    });
+}
+
+async function getPossibleValueGrids(board: GameBoard): Promise<ValueGrid[]> {
+    const possibleRows = await getPossibleValueRowsWithAccums(board);
 
     let rowNum = 0;
     let partialResults: ValueGrid[] = [[]];
@@ -265,13 +302,7 @@ function getPossibleValueGrids(board: GameBoard): ValueGrid[] {
         );
         const validRows = R.map((row: RowWithAccum) => row.row, validRowsWithAccums);
 
-        const nextPartialGridsByValidRow: ValueGrid[][] = R.map((rowToAdd: ValueGridRow) => {
-            return R.map(R.append(rowToAdd), partialResults);
-        }, validRows);
-
-        const nextPartialGrids: ValueGrid[] = ([] as ValueGrid[]).concat(
-            ...nextPartialGridsByValidRow
-        );
+        const nextPartialGrids: ValueGrid[] = await getNextPartialGrids(partialResults, validRows);
 
         partialResults = R.filter((grid: ValueGrid): boolean => {
             for (let colNum = 0; colNum < NUM_COLS; colNum += 1) {
@@ -300,7 +331,7 @@ function getPossibleValueGrids(board: GameBoard): ValueGrid[] {
 }
 
 export async function getLikelihoods(board: GameBoard): Promise<LikelihoodGrid | null> {
-    const possibleGrids = getPossibleValueGrids(board);
+    const possibleGrids = await getPossibleValueGrids(board);
     if (possibleGrids.length === 0) {
         return null;
     }

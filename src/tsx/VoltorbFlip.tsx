@@ -62,7 +62,6 @@ export default class VoltorbFlip extends React.Component<Props, State> {
 
                 return {
                     board: GameBoardHelper.updateGameBoard(prevState.board, { updatedGrid }),
-                    isComputing: true,
                     isOutOfDate: true,
                 };
             });
@@ -155,6 +154,7 @@ export default class VoltorbFlip extends React.Component<Props, State> {
 
                 return {
                     board: GameBoardHelper.updateGameBoard(prevState.board, { updatedRowAccums }),
+                    isOutOfDate: true,
                 };
             });
         };
