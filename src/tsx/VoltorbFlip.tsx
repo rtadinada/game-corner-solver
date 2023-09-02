@@ -40,12 +40,25 @@ function formatPercent(chance: number): string {
 export default class VoltorbFlip extends React.Component<Props, State> {
     state = INITIAL_STATE;
 
-    renderCell = (
-        rowNum: number,
-        colNum: number,
-        likelihoods: CellLikelihoods | null,
-        lowestVol: number | null
-    ): React.ReactNode => {
+    getLowestVolChance = (): number => {
+        if (this.state.likelihoodGrid === null) {
+            return 1;
+        }
+        let chance = 1;
+        for (let rowNum of R.range(0, GameBoardHelper.NUM_ROWS)) {
+            for (let colNum of R.range(0, GameBoardHelper.NUM_ROWS)) {
+                if (this.state.board.grid[rowNum][colNum] === GameBoardHelper.UNSET_VALUE) {
+                    const likelihoods = this.state.likelihoodGrid[rowNum][colNum];
+                    if (likelihoods.two > 0 || likelihoods.three > 0) {
+                        chance = Math.min(chance, likelihoods.voltorb);
+                    }
+                }
+            }
+        }
+        return chance;
+    };
+
+    renderCell = (rowNum: number, colNum: number): React.ReactNode => {
         const cellVal = GameBoardHelper.getGameCell(this.state.board.grid, rowNum, colNum);
         const keyName = `${rowNum}-${colNum}`;
 
@@ -67,26 +80,33 @@ export default class VoltorbFlip extends React.Component<Props, State> {
             });
         };
 
+        const likelihoodsExist = this.state.likelihoodGrid !== null;
+        const likelihoods = likelihoodsExist
+            ? this.state.likelihoodGrid![rowNum][colNum]
+            : {
+                  one: 0,
+                  two: 0,
+                  three: 0,
+                  voltorb: 0,
+              };
+        const lowestVolChance = this.getLowestVolChance();
+
         let addlClass = "";
         if (this.state.isOutOfDate) {
             addlClass = style.playCellOutOfDate;
-        } else if (likelihoods === null || lowestVol === null) {
+        } else if (!likelihoodsExist) {
             addlClass = style.invalidColor;
-        } else if (likelihoods.voltorb === 0) {
+        } else if (likelihoods.voltorb === 0 && (likelihoods.two > 0 || likelihoods.three > 0)) {
             addlClass = style.playCellNoBomb;
         } else if (likelihoods.voltorb === 1) {
             addlClass = style.invalidColor;
-        } else if (
-            likelihoods.two + likelihoods.three > 0.5 ||
-            likelihoods.voltorb < lowestVol + 0.1
-        ) {
-            addlClass = style.playCellLikelyPoints;
         } else if (likelihoods.two === 0 && likelihoods.three === 0) {
             addlClass = style.playCellNoPoints;
+        } else if (likelihoods.voltorb <= lowestVolChance + 0.03) {
+            addlClass = style.playCellLikelyPoints;
         }
 
         if (cellVal === GameBoardHelper.UNSET_VALUE) {
-            const likelihoodsValid = !this.state.isOutOfDate && likelihoods !== null;
             return (
                 <div
                     key={keyName}
@@ -96,26 +116,20 @@ export default class VoltorbFlip extends React.Component<Props, State> {
                     <div className={style.likelihoodName}>
                         {CELL_VALUE_TO_STRING[GameBoardHelper.ONE_VALUE]}:
                     </div>
-                    <div className={style.likelihoodValue}>
-                        {formatPercent(likelihoodsValid ? likelihoods.one : 0)}
-                    </div>
+                    <div className={style.likelihoodValue}>{formatPercent(likelihoods.one)}</div>
                     <div className={style.likelihoodName}>
                         {CELL_VALUE_TO_STRING[GameBoardHelper.TWO_VALUE]}:
                     </div>
-                    <div className={style.likelihoodValue}>
-                        {formatPercent(likelihoodsValid ? likelihoods.two : 0)}
-                    </div>
+                    <div className={style.likelihoodValue}>{formatPercent(likelihoods.two)}</div>
                     <div className={style.likelihoodName}>
                         {CELL_VALUE_TO_STRING[GameBoardHelper.THREE_VALUE]}:
                     </div>
-                    <div className={style.likelihoodValue}>
-                        {formatPercent(likelihoodsValid ? likelihoods.three : 0)}
-                    </div>
+                    <div className={style.likelihoodValue}>{formatPercent(likelihoods.three)}</div>
                     <div className={style.likelihoodName}>
                         {CELL_VALUE_TO_STRING[GameBoardHelper.VOLTORB_VALUE]}:
                     </div>
                     <div className={style.likelihoodValue}>
-                        {formatPercent(likelihoodsValid ? likelihoods.voltorb : 0)}
+                        {formatPercent(likelihoods.voltorb)}
                     </div>
                 </div>
             );
@@ -306,19 +320,9 @@ export default class VoltorbFlip extends React.Component<Props, State> {
         );
     };
 
-    renderRow = (
-        rowNum: number,
-        rowLikelihoods: LikelihoodRow | null,
-        lowestVol: number | null
-    ): React.ReactNode[] => {
+    renderRow = (rowNum: number): React.ReactNode[] => {
         const playCells: ReactNode[] = R.map(
-            (colNum: number) =>
-                this.renderCell(
-                    rowNum,
-                    colNum,
-                    rowLikelihoods !== null ? rowLikelihoods[colNum] : null,
-                    lowestVol
-                ),
+            (colNum: number) => this.renderCell(rowNum, colNum),
             R.range(0, GameBoardHelper.NUM_COLS)
         );
         return R.append(this.renderRowAccum(rowNum), playCells);
@@ -367,33 +371,30 @@ export default class VoltorbFlip extends React.Component<Props, State> {
         };
 
         const likelihoodGrid = this.state.isComputing ? null : this.state.likelihoodGrid;
-        const lowestVol =
-            likelihoodGrid === null
-                ? null
-                : R.reduce(
-                      (prevLow: number, row: LikelihoodRow): number => {
-                          const rowLow = R.reduce(
-                              (prevLow: number, l: CellLikelihoods): number => {
-                                  return Math.min(prevLow, l.voltorb);
-                              },
-                              1,
-                              row
-                          );
-                          return Math.min(prevLow, rowLow);
-                      },
-                      1,
-                      likelihoodGrid
-                  );
+        let lowestVol = 0;
+        if (likelihoodGrid !== null) {
+        }
+        likelihoodGrid === null
+            ? null
+            : R.reduce(
+                  (prevLow: number, row: LikelihoodRow): number => {
+                      const rowLow = R.reduce(
+                          (prevLow: number, l: CellLikelihoods): number => {
+                              return Math.min(prevLow, l.voltorb);
+                          },
+                          1,
+                          row
+                      );
+                      return Math.min(prevLow, rowLow);
+                  },
+                  1,
+                  likelihoodGrid
+              );
 
         return (
             <div className={style.playGrid} style={gridStyle}>
                 {R.map(
-                    (rowNum: number) =>
-                        this.renderRow(
-                            rowNum,
-                            likelihoodGrid !== null ? likelihoodGrid[rowNum] : null,
-                            lowestVol
-                        ),
+                    (rowNum: number) => this.renderRow(rowNum),
                     R.range(0, GameBoardHelper.NUM_ROWS)
                 )}
                 {this.renderColAccumRow()}
